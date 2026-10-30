@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Добровольное исследование сетевых данных</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
+    body { margin: 0; background: #f3f5f8; color: #182230; }
+    main { max-width: 720px; margin: 48px auto; padding: 0 18px; }
+    .card { background: white; border: 1px solid #dce2ea; border-radius: 16px; padding: 26px; box-shadow: 0 8px 30px #1522380d; }
+    h1 { font-size: 1.55rem; margin-top: 0; }
+    p { line-height: 1.55; }
+    .muted { color: #596579; font-size: .94rem; }
+    label { display: flex; gap: 10px; align-items: flex-start; margin: 20px 0; line-height: 1.45; }
+    input { margin-top: 4px; }
+    button { border: 0; border-radius: 9px; padding: 12px 18px; background: #175cd3; color: white; font-weight: 650; cursor: pointer; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #status, #result { margin-top: 18px; padding: 14px; border-radius: 10px; background: #f1f5fb; white-space: pre-wrap; }
+    .hidden { display: none; }
+    footer { margin-top: 18px; }
+    a { color: #175cd3; }
+  </style>
+</head>
+<body>
+<main>
+  <section class="card">
+    <h1>Добровольное исследование сетевых данных</h1>
+    <p>Эта страница предлагает добровольно передать исследователю технические сведения о вашем подключении.</p>
+    <p><strong>После нажатия кнопки и подтверждения согласия</strong> сервер получит ваш публичный IP-адрес, страну (если её определяет сеть Cloudflare), название организации/провайдера, если оно доступно, и время обращения.</p>
+    <p>IP-геолокация приблизительна: она может показывать город или регион провайдера, а не ваше фактическое местонахождение. GPS-координаты не запрашиваются.</p>
+    <p class="muted">Цель сбора: [укажите конкретную исследовательскую цель]. Получатель данных: [укажите имя/организацию и контакт]. Срок хранения: [укажите срок, например 30 дней]. Данные не должны использоваться для идентификации, слежения или принятия решений о человеке.</p>
+    <label>
+      <input type="checkbox" id="consent">
+      <span>Я прочитал(а) информацию выше и добровольно соглашаюсь передать перечисленные технические данные для указанной цели.</span>
+    </label>
+    <button id="send" disabled>Согласиться и отправить данные</button>
+    <div id="status" role="status" aria-live="polite">Данные не отправлены.</div>
+    <div id="result" class="hidden"></div>
+    <footer class="muted">Отправка необязательна. Закрыв страницу, вы можете отказаться от участия.</footer>
+  </section>
+</main>
+<script>
+  // Укажите адрес своего Cloudflare Worker, например:
+  // https://your-worker-name.your-subdomain.workers.dev
+  const API_BASE = "https://muddy-water-7b51.romddsky.workers.dev";
+
+  const consent = document.getElementById("consent");
+  const send = document.getElementById("send");
+  const statusBox = document.getElementById("status");
+  const resultBox = document.getElementById("result");
+
+  consent.addEventListener("change", () => { send.disabled = !consent.checked; });
+
+  send.addEventListener("click", async () => {
+    if (!consent.checked) return;
+    send.disabled = true;
+    statusBox.textContent = "Отправка…";
+    resultBox.classList.add("hidden");
+
+    try {
+      const response = await fetch(`${API_BASE}/api/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consent: true })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Не удалось отправить данные.");
+
+      statusBox.textContent = "Спасибо. Ваши данные переданы добровольно.";
+      resultBox.textContent =
+        `Страна: ${data.country || "не определена"}\n` +
+        `Организация/провайдер: ${data.provider || "не определён"}\n` +
+        `Время: ${data.time}`;
+      resultBox.classList.remove("hidden");
+      consent.checked = false;
+    } catch (err) {
+      statusBox.textContent = `Ошибка: ${err.message}`;
+      send.disabled = !consent.checked;
+    }
+  });
+</script>
+</body>
+</html>

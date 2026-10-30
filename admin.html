@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Панель результатов исследования</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 30px auto; padding: 0 16px; max-width: 1050px; background: #f3f5f8; color: #182230; }
+    section { background: white; border: 1px solid #dce2ea; border-radius: 14px; padding: 22px; }
+    input, button { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
+    button { background: #175cd3; color: white; border: 0; cursor: pointer; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5eaf0; white-space: nowrap; }
+    th { background: #f7f9fc; }
+    #status { margin: 12px 0; color: #596579; }
+  </style>
+</head>
+<body>
+<section>
+  <h1>Результаты исследования</h1>
+  <p>Доступ только исследователю. Не публикуйте таблицу и не пытайтесь устанавливать личность участников по IP.</p>
+  <div class="controls">
+    <input id="token" type="password" placeholder="Административный токен" autocomplete="current-password">
+    <button id="load">Загрузить результаты</button>
+  </div>
+  <div id="status">Введите токен и нажмите «Загрузить результаты».</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Время (UTC)</th><th>IP</th><th>Страна</th><th>Организация / провайдер</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</section>
+<script>
+  const API_BASE = "https://muddy-water-7b51.romddsky.workers.dev";
+  const tokenInput = document.getElementById("token");
+  const statusBox = document.getElementById("status");
+  const rows = document.getElementById("rows");
+
+  document.getElementById("load").addEventListener("click", async () => {
+    rows.replaceChildren();
+    statusBox.textContent = "Загрузка…";
+    try {
+      const response = await fetch(`${API_BASE}/api/results`, {
+        headers: { "Authorization": `Bearer ${tokenInput.value}` }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Ошибка доступа");
+      for (const item of data.results) {
+        const tr = document.createElement("tr");
+        for (const value of [item.time, item.ip, item.country, item.provider]) {
+          const td = document.createElement("td");
+          td.textContent = value || "—";
+          tr.appendChild(td);
+        }
+        rows.appendChild(tr);
+      }
+      statusBox.textContent = `Записей: ${data.results.length}`;
+    } catch (err) {
+      statusBox.textContent = `Ошибка: ${err.message}`;
+    }
+  });
+</script>
+</body>
+</html>
